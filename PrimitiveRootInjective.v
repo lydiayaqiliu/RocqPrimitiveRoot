@@ -14,7 +14,8 @@ Open Scope Z_scope.
      
 
 (*Now we prove that primitive root construction is indeed injective
- (i.e., {p^0,...,p^{p-2} are all distinct.})*)
+ (i.e., {p^0,...,p^{p-2} are all distinct.})
+ We copy some definitions from Costas Construction to here.*)
 Definition coprime (a b: Z) :Prop := Z.gcd a b = 1.
 
 
@@ -24,6 +25,16 @@ Definition primitive_root (g p : Z) : Prop :=
     forall a : Z, 1 <= a < p -> coprime a p ->
     exists i : Z, 0 <= i < p - 1/\ ((g ^ i) mod p) = a.
 
+
+
+(*We want to do a order argument. That is,
+    g^m ≡ g^k (mod p)
+      => g^(m-k) ≡ 1 (mod p)     -- cancel g^k (it's coprime to p, so invertible)
+      => (p-1) | (m-k)            -- order of g is p-1
+      => m-k = 0                  -- since 0 ≤ m-k < p-1, only multiple of (p-1) that fits is 0
+      => m = k *)
+
+(*However, several difficulties emerge when proceed with this schema. *)
 
 (*
   For order, we avoid to give a real definition, since that would 
@@ -37,6 +48,8 @@ Definition order_eq_pminus1 (g p : Z) : Prop :=
   g ^ (p - 1) mod p = 1 /\
   forall k : Z, 0 < k -> k < p - 1 -> g ^ k mod p <> 1.
 
+
+  (*As well as this fact below:*)
 Theorem primitive_root_order_eq :
   forall g p : Z,
   primitive_root g p ->
@@ -53,14 +66,18 @@ Proof.
     Now we know |(Z/pZ)×| = p - 1 by counting.
     And ord(g) = |<g>| = |(Z/pZ)×| = p - 1.
 
-    Mathcomp
 *)
 Admitted.
 
 
+(*Now everything below were rigorously proved and constructed.*)
+(*Start with some helpful lemma*)
 
 
-(*SHOULD HAVE USED pos_div_eucl, BUT WE ARE TOO LATE*)
+
+(* If Z.div_eucl r (p-1) = (q, s), then s is already
+  in [0, p-2], so s mod (p-1) = s. *)
+
 Theorem Euclidean_division_mod :
   forall r p q s: Z, r > 0 ->
   p > 1 ->
@@ -108,6 +125,10 @@ Proof.
   lia.
 Qed.
 
+
+
+(* Same division, and the quotient q is non-negative. *)
+
 Lemma Euclidean_division_pos:
   forall r p q s: Z, r > 0 ->
   p > 1 ->
@@ -125,12 +146,15 @@ Proof.
 Qed.
 
 
+(*Already proved in CostatsConstruction. Copied here.*)
 Lemma mod_cancel : forall p a b c,
   prime p ->
   c mod p <> 0 ->
   (a * c) mod p = (b * c) mod p ->
   a mod p = b mod p.
-Proof. Admitted. (*Alreadt proven before.*)
+Proof. Admitted. 
+
+(* Primitive root g is coprime to p — just unwraps the definition. *)
 
 Lemma primitive_root_coprime :
   forall g p : Z,
@@ -141,12 +165,8 @@ Proof. intros. unfold primitive_root in H. destruct H. destruct H0.
 Qed.
 
 
-(*rel_prime_mult:
-forall a b c : Z,
-rel_prime a b -> rel_prime a c -> rel_prime a (b * c)
-Zgcd_1_rel_prime:
-forall a b : Z, Z.gcd a b = 1 <-> rel_prime a b
-*)
+(* If gcd(g, p) = 1 then gcd(g^k, p) = 1.
+   Proved by nat induction on k. *)
 
 Lemma coprime_pow :
   forall g p k : Z,
@@ -172,16 +192,8 @@ Proof.
 Qed.
 
 
-Search "div_eucl".
-(*Z.pow_mul_l: forall a b c : Z, (a * b) ^ c = a ^ c *
-b ^ c
-Z.pow_add_r: forall a b c : Z,
-0 <= b -> 0 <= c -> a ^ (b + c) = a ^ b * a ^ c
-
-Ndiv_def.Pdiv_eucl_remainder:
-forall a b : positive,
-(snd (Ndiv_def.Pdiv_eucl a b) < N.pos b)%N*)
-
+(* g^m = g^(m-k) * g^k, for 0 ≤ k ≤ m.
+   In order to simplify the final theorem. *)
 Lemma pow_split :
   forall g m k : Z,
   0 <= m /\ 0 <= k ->
@@ -196,16 +208,9 @@ Qed.
 
 
 
-(*Zmult_mod_idemp_l:
-forall a b n : Z, (a mod n * b) mod n = (a * b) mod n
-
-Z.mul_nonpos_nonneg:
-forall n m : Z, n <= 0 -> 0 <= m -> n * m <= 0
-
-
-Z.mod_pow_l: forall a b c : Z,
-(a mod c) ^ b mod c = a ^ b mod c*)
-
+(* g^r ≡ 1 (mod p) implies (p-1) | r.
+  Proof: write r = (p-1)*q + s, show g^s ≡ 1,
+  then minimality of order forces s = 0. *)
 
 Lemma order_divides :
   forall g p r : Z,
@@ -309,9 +314,10 @@ Proof.
 Qed.
       
 
-Search "mul_pos".
 
-
+(* If p | a, then gcd(a, p) = p.
+   Needed to turn "g^k mod p = 0" into a contradiction
+   against g being coprime to p. *)
 Lemma mod_zero_gcd :
   forall a p : Z,
   prime p ->
@@ -330,7 +336,10 @@ Proof. intros a p Hprime Hmod.
   apply H0.
 Qed.
 
-(*Z.mod_1_l: forall a : Z, 1 < a -> 1 mod a = 1*)
+
+(*Finally, we show injectivity by assuming k < m. This is 
+basically the whole proof, just with k < m so we could directly
+apply trichotomy in the final theorem.*)
 
 Lemma primitive_root_injective_aux :
   forall g p m k : Z,
@@ -388,6 +397,9 @@ assert (H6 : m - k = 0).
 lia.
 Qed.
 
+
+(*And the real theorem:*)
+
 Theorem primitive_root_injective :
   forall g p m k : Z,
   primitive_root g p ->
@@ -413,5 +425,4 @@ Theorem primitive_root_injective :
     lia.
   Qed.
 
-  (* Assuming k <= m does not lose generality.*)
 
