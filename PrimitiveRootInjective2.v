@@ -1,16 +1,18 @@
+
+Require Import ZArith List Lia.
+Require Import FMaps FMapAVL FMapFacts OrderedTypeEx.
+Import ListNotations.
+
 (*Another easier way we could prove that Primitive root is injective is through
 finite map. Indeed, by definition, primitive root is surgective to 
 1 <= a < p and forall 0 < i <= p-1. Since they have the same cardinality,
 they must also be injective.*)
 
-(*This is unfinished. There is a simpler way to prove injectivity using
+(*This is unfinished. This is a simpler way to prove injectivity using
 surjectivity on A -> B if |A| <= |B| ==> bijectivity. But I do not 
-have time to finish it today; please dont count this as a part of my final project.
-I am doing this just as a fun practice. *)
+have time to finish it; please dont count this as a part of my final project TT. 
+Just pushing it to the repo so i can save it for later as a fun practice. *)
 
-Require Import ZArith List Lia.
-Require Import FMaps FMapAVL FMapFacts OrderedTypeEx.
-Import ListNotations.
 
 Module ZMap := FMapAVL.Make(Z_as_OT).
 Module ZMapFacts := FMapFacts.Facts(ZMap).
