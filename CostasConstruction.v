@@ -9,7 +9,21 @@ Open Scope Z_scope.
 
 
 (*
-  Before everything, we want to be able to show whether numbers like 3, 7, 89 are prime.
+
+  The inspiration of the whole project is by this youtube video:https://www.youtube.com/watch?v=8NWwwvM5Kpo
+    which claims that the most patternless music (which dubiously is equivalent to world "ugliest" music) can
+    be constructed via Constats array, since 3 is a primitive root mod 89. So in total 88 keys.
+  The project verifies consta's patternlessness, as well as its construction is valid in term of:
+    1. 3 is a primitive root mod 89.
+    2. functions of g^i mod p indeed yields constas array, which is patternless in definition.
+    3. Therefore, a musical score produced by (i, 3^i mod 89) for all 1 - 88 is indeed patternless,
+      if i denotes its interval after the previous note, and 3^i mod 89 denotes the key selected.
+      By patternless, it means subtracting for all (i', 3^i' mod 89) - (i, 3^i mod 89) = (k , m), 
+      (k, m) are unique.
+  Along with definition and lemmas necessary.
+*)
+
+(*Before anything, we want to be able to show whether numbers like 3, 7, 89 are prime.
   To do that, we need some basic tools. 
   The inspriation is from this post on stack exchange:
   https://stackoverflow.com/questions/49282773/how-to-prove-that-a-number-is-prime-using-znumtheory-in-coq
@@ -20,8 +34,7 @@ Open Scope Z_scope.
   is_prime is defined such that is_prime n = true if forall n' < n, the 
     gcd of n and n' is always 1.
   Finally, we check this is_prime definition do correspond to the prime definition
-    in Z.numtheory.
-*)
+    in Z.numtheory.*)
 
 Function for_all (f:Z->bool) n {measure Z.to_nat n}:=
   if n <=? 1 then true
@@ -69,10 +82,9 @@ Proof. apply is_prime_correct. reflexivity. Qed.
 
 (*Indeed it is.*)
 
-
-(*We need a helper that facilates our check for prime number & primitive root*)
-
-
+(*This gives us a principle to follow for proving following theorems. Principle of reflection, 
+in a smart way. Primitive root can also be verified using direct computation.*)
+(*Indded, We need a helper that facilates our check for prime number & primitive root*)
 
 
 Definition coprime (a b: Z) :Prop := Z.gcd a b = 1.
@@ -83,15 +95,15 @@ Definition is_coprime (a b : Z) := fun a b => (Z.gcd a b =? 1).
 Example coprime389: coprime 3 89.
 Proof. reflexivity. Qed.
 
-(*now define a primitive root. g is a primitive root mod p if for all 1 <= a < p,
-if a and p are coprime, then there exists some i\in (N\/{0}) such that g^i mod p = a.*)
+(*Now, define a primitive root. g is a primitive root mod p if for all 1 <= a < p,
+if a and p are coprime, then there exists some i <= p - 1 such that g^i mod p = a.*)
 Definition primitive_root (g p : Z) : Prop :=
     prime p /\
     coprime g p /\
     forall a : Z, 1 <= a < p -> coprime a p ->
     exists i : Z, 0 < i <= p-1 /\ ((g ^ i) mod p) = a.
 
-(*Removed the -> to aviod vacuously true case*)
+(*This is used to find whether there is a i <= p - 1 that yields some a.*)
 Fixpoint find_exp (g a p : Z) (fuel : nat) : option Z :=
   match fuel with
   | O => None
@@ -102,6 +114,7 @@ Fixpoint find_exp (g a p : Z) (fuel : nat) : option Z :=
       else find_exp g a p n
   end.
 
+(*If forall a there exists such i, then we are good.*)
 Definition check_primitive_root (g p fuel : Z) : bool :=
   for_all (fun a => 
     match find_exp g a p (Z.to_nat fuel) with
@@ -109,6 +122,9 @@ Definition check_primitive_root (g p fuel : Z) : bool :=
     | None => false
     end) p.
 
+(*We are left to prove the soundness of this algorithm. 
+Does it truly return the i we want, the i that is in range
+and g^i = a mod p?*)
 Lemma find_exp_correct : forall g a p upbound i,
   find_exp g a p upbound = Some i ->
   0 < i <= Z.of_nat upbound /\ (g ^ i) mod p = a.
@@ -133,7 +149,9 @@ Proof.
       ** assumption.
 Qed.
 
-
+(*Then the soundness of our check primitive root algorithm.
+That is to show, if we are able to find some i for all a, 
+then indeed g is a primitive root mod p.*)
 Lemma check_primitive_root_correct : forall g p,
   check_primitive_root g p (p-1) = true ->
   forall a, 1 <= a < p -> coprime a p ->
@@ -149,7 +167,7 @@ Proof.
 Qed.
 
 
-
+(*It is possible to show e is a primitive root mod 89.*)
 Example three_is_a_primitive_root_mod_89: primitive_root 3 89.
 Proof.
   unfold primitive_root. split. apply p89. split. apply coprime389.
@@ -160,14 +178,15 @@ Proof.
   - exact H0.
 Qed.
 
-(*Introducing costats array. if (x, f(x)) is a costa array, then for all (x, f(x)), (y, f(y)),
-(x-y) and (f(x)-f(y)) are distinct. Let x-y represent the difference in pitch (discretemized as keys
-on piano), f(x) - f(y) be the difference in time, we would be able to construct a 'patternless' music.*)
 
-(*Notice one improtant thing we need to use is that primitive root is actually injective. Lets
-Admit it for now and see if we can prove it if we have time.*)
+(*Notice one improtant thing we need to use is that primitive root mapping is actually injective. 
+Although it looks quite natural (We can either claim : 1. since there are only p - 1 elements in the domain 
+and p - 1 elements in the range, by definition primitive root is surjective so it must be injective as well 
+OR 2. group order / mod field arguments), both of them needs tons of construction. *)
+(*It is "sort of" proved in the document, PrimitiveRootInjective, where I applied group argument. 
+More details can be found in that document.*)
 
-(*We acknowledge for now that primitive root is injective*)
+(*For the sake of fluency of argument, we acknowledge that primitive root is injective for now.*)
 Lemma primitive_root_injective : forall g p i k,
   primitive_root g p ->
   0 <= i < p - 1 ->
@@ -177,6 +196,15 @@ Lemma primitive_root_injective : forall g p i k,
 Proof.
 Admitted.
 
+(*Introducing costats array. 
+if (x, f(x)) is a costa array, then for all (x, f(x)), (y, f(y)),
+(x-y) and (f(x)-f(y)) are distinct. 
+
+Let x-y represent the difference in pitch (discretemized as keys
+on piano), f(x) - f(y) be the difference in time, we would be able to construct a 'patternless' music
+(in a sense of interval vector)
+*)
+
 Definition costas (f : Z -> Z) (n : Z) : Prop := 
     forall i j k l,
     0 < i /\ i < j /\ j <= n ->
@@ -185,8 +213,14 @@ Definition costas (f : Z -> Z) (n : Z) : Prop :=
     f j - f i = f l - f k ->
     i = k /\ j = l.
 
-(*Welch construction of Costas*)
+(*Welch construction of Costas (who uses primitive root mapping to construct Costas array).*)
 
+
+(*Now, it suffices to show primitive root does give constas. To do this, we need several lemma 
+for the final proof.*)
+
+(*By injectivity, we know for all 0 < i < p - 1, 0 is the only thing that
+maps g^0 = 1 mod p.  *)
 Lemma primitive_root_pow_ne_one : forall g p m,
   primitive_root g p ->
   0 < m < p - 1 ->
@@ -204,18 +238,9 @@ apply primitive_root_injective in Hconrta.
   + lia.
 Qed.
 
-Search ((_ - _) mod _ ).
 
-(*Zmod_divide: forall a b : Z, b <> 0 ->
-a mod b = 0 -> (b | a)
-Gauss: ∀ a b c : Z, (a | b * c) → rel_prime a b → (a | c)
-Z.mul_comm: forall n m : Z, n * m = m * n
-Zdivide_mod: forall a b : Z, (b | a) -> a mod b = 0
-Z.cong_iff_0:
-forall a b m : Z, a mod m = b mod m <->
-(a - b) mod m = 0
-*)
 
+(*mod distributivity for our following arithmatic cancellation.*)
 Lemma mod_minus_distr : forall a b p,
   p > 1 ->
   (a - b) mod p = 0 ->
@@ -226,7 +251,7 @@ Proof.
 Qed.
 
 
-
+(*We can cancel mod as well, under certain constriants.*)
 Lemma mod_cancel : forall p a b c,
   prime p ->
   c mod p <> 0 ->
@@ -266,19 +291,7 @@ Proof.
   assumption.
 Qed.
   
-
-
-  
-
-
-
-
-Search (1 mod _ = 1).
-(*
-Z.mul_mod:
-forall a b n : Z,
-n <> 0 -> (a * b) mod n = (a mod n * (b mod n)) mod n*)
-
+(*Now, we can show that primitive root indeed gives costas.*)
 
 Theorem primitive_root_gives_costas :
   forall p g, prime p ->
@@ -292,7 +305,7 @@ Proof.
   destruct Hkl as [Hk [Hkl Hl]].
   enough (Hik : i = k) by lia.
   - (* prove i = k *)
-    (* step 1: g^(j-i) - 1 ≠ 0 mod p *)
+    (* step 1: g^(j-i) - 1 <> 0 mod p *)
     assert (Hne : g ^ (j - i) mod p <> 1).
     { apply primitive_root_pow_ne_one with (p := p).
       - exact Hprim.
@@ -326,7 +339,6 @@ Proof.
   assumption. 
   intros Hcontra. apply Hne.  
   2: assumption.
-  (*Why no modular distributivity? That doesnt make sense at all.*)
   apply mod_minus_distr in Hcontra. apply prime_ge_2 in Hp. rewrite Z.mod_1_l in Hcontra.
   lia.
   + lia.
@@ -336,7 +348,12 @@ Proof.
     * lia.
 Qed.
 
-(*Yet this is just a few lines proof on the paper!*)
+(*Note this is just a few lines proof on the paper!
+g^j − g^i ≡ g^l − g^k (mod p)
+g^i(g^(j−i) − 1) ≡ g^k(g^(j−i) − 1) (mod p)
+Cancelation gives us g^i = g^k.
+By injectivity we have i = k.
+*)
 
 Example patternless_music : costas (fun i => 3^i mod 89) (88).
 Proof. apply primitive_root_gives_costas. 
